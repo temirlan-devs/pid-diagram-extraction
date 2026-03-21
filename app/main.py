@@ -15,6 +15,7 @@ from flask_cors import CORS
 from PIL import Image
 
 from src.detection.detector import detect_objects
+from src.rendering.annotate import draw_bounding_boxes
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -67,42 +68,9 @@ def detect_text(image):
     logging.info("Text detection completed on the entire image")
     return detections
 
-def draw_bounding_boxes(image, detections):
-    image_np = np.array(image)
-    for detection in detections:
-        coords = detection['coordinates']
-        color = detection['color']
-        if 'Predicted Class' in detection:
-            x1, y1, x2, y2 = coords
-            cv2.rectangle(image_np, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(image_np, f"{detection['Predicted Class']} {detection['Score']:.2f}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-        else:
-            pts = np.array(coords, np.int32).reshape((-1, 1, 2))
-            cv2.polylines(image_np, [pts], isClosed=True, color=color, thickness=2)
-            cv2.putText(image_np, detection['text'], (coords[0][0], coords[0][1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-    return Image.fromarray(image_np)
-
-def draw_certain_bounding_boxes(image, detections, item_number):
-    image_np = np.array(image)
-    for detection in detections:
-        if detection['ItemNumber'] == item_number:
-            coords = detection['coordinates']
-            color = detection['color']
-            if 'Predicted Class' in detection:
-                x1, y1, x2, y2 = coords
-                cv2.rectangle(image_np, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(image_np, f"{detection['Predicted Class']} {detection['Score']:.2f}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-            else:
-                pts = np.array(coords, np.int32).reshape((-1, 1, 2))
-                cv2.polylines(image_np, [pts], isClosed=True, color=color, thickness=2)
-                cv2.putText(image_np, detection['text'], (coords[0][0], coords[0][1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-    return Image.fromarray(image_np)
-
 @app.route('/')
 def index():
     return render_template('index.html')
-
-
 
 @app.route('/detect', methods=['POST'])
 def detect():
