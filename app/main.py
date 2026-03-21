@@ -7,7 +7,6 @@ import io
 import logging
 
 import cv2
-import easyocr
 import numpy as np
 import pandas as pd
 from flask import Flask, jsonify, render_template, request
@@ -16,6 +15,8 @@ from PIL import Image
 
 from src.detection.detector import detect_objects
 from src.rendering.annotate import draw_bounding_boxes
+from src.ocr.reader import detect_text, detect_text_in_tiles
+from src.ocr.tiling import split_image
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -23,50 +24,8 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Initialize EasyOCR reader
-reader = easyocr.Reader(['en'])
-logging.info("EasyOCR reader initialized")
-
 # Define the size of each sub-image
 sub_image_size = 1024
-
-def split_image(image, sub_image_size):
-    height, width, _ = image.shape
-    sub_images = []
-    for y in range(0, height, sub_image_size):
-        for x in range(0, width, sub_image_size):
-            sub_image = image[y:y + sub_image_size, x:x + sub_image_size]
-            sub_images.append((sub_image, x, y))
-    logging.debug(f"Image split into {len(sub_images)} sub-images")
-    return sub_images
-
-def detect_text_subimages(sub_images):
-    detections = []
-    total_sub_images = len(sub_images)
-    for i, (sub_image, x_offset, y_offset) in enumerate(sub_images):
-        result = reader.readtext(sub_image)
-        for (bbox, text, _) in result:
-            bbox = np.array(bbox).astype(int)
-            adjusted_bbox = [(pt[0] + x_offset, pt[1] + y_offset) for pt in bbox]
-            detections.append({'coordinates': adjusted_bbox, 'text': text, 'color': (255, 0, 0)}) # Blue color
-        logging.info(f"Processed sub-image {i + 1}/{total_sub_images} for text detection")
-    return detections
-
-def detect_text(image):
-    logging.info("Text detection started on the entire image")
-    image_np = np.array(image)
-    result = reader.readtext(image_np)
-    detections = []
-    for idx, (bbox, text, score) in enumerate(result):
-        bbox = np.array(bbox).astype(int)
-        x1, y1 = map(int, bbox[0])
-        x2, y2 = map(int, bbox[2])
-        width = x2 - x1
-        height = y2 - y1
-        #detections.append({'coordinates': bbox, 'text': text, 'color': (255, 0, 0)}) # Blue color
-        detections.append({'Predicted Class': text, 'ItemNumber': idx + 1, 'x': x1, 'y': y1, 'width': width, 'height': height, 'Score': score, 'coordinates': (x1, y1, x2, y2), 'color': (255, 0, 0), 'DetectionType': "Text"})
-    logging.info("Text detection completed on the entire image")
-    return detections
 
 @app.route('/')
 def index():
@@ -84,7 +43,7 @@ def detect():
     object_detections = detect_objects(image)
     
     # Perform text detection on sub-images
-    text_detections = detect_text(image)
+    text_detections = detect_text(image_np)
     
     # Combine all detections
     logging.info("Before combining")
