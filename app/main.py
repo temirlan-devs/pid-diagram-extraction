@@ -13,7 +13,8 @@ import pandas as pd
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from PIL import Image
-from ultralytics import YOLO
+
+from src.detection.detector import detect_objects
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -21,18 +22,12 @@ logging.basicConfig(level=logging.DEBUG)
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Load YOLO model
-# TODO: replace hardcoded local path
-model = YOLO('C:/Users/Desktop/pid/webapp/models/trainingmodel.pt')
-logging.info("YOLO model loaded")
-
 # Initialize EasyOCR reader
 reader = easyocr.Reader(['en'])
 logging.info("EasyOCR reader initialized")
 
 # Define the size of each sub-image
 sub_image_size = 1024
-
 
 def split_image(image, sub_image_size):
     height, width, _ = image.shape
@@ -43,24 +38,6 @@ def split_image(image, sub_image_size):
             sub_images.append((sub_image, x, y))
     logging.debug(f"Image split into {len(sub_images)} sub-images")
     return sub_images
-
-def detect_objects(image):
-    detections = []
-    logging.info("Object detection started on the entire image")
-    image_np = np.array(image)
-    image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
-    results = model.predict(source=image_bgr, imgsz=[image_np.shape[1], image_np.shape[0]])
-    #detections = []
-    for idx, box in enumerate(results[0].boxes):
-        x1, y1, x2, y2 = map(int, box.xyxy[0])
-        label = results[0].names[int(box.cls[0])]
-        score = float(box.conf[0])
-        width = x2 - x1
-        height = y2 - y1
-        #detections.append({'coordinates': (x1, y1, x2, y2), 'label': label, 'score': score, 'color': (0, 255, 0)}) # Green color
-        detections.append({'Predicted Class': label, 'ItemNumber': idx + 1, 'x': x1, 'y': y1, 'width': width, 'height': height, 'Score': score, 'coordinates': (x1, y1, x2, y2), 'color': (0, 255, 0), 'DetectionType': "Object"})
-    logging.info("Object detection completed on the entire image")
-    return detections
 
 def detect_text_subimages(sub_images):
     detections = []
