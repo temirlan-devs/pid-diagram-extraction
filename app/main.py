@@ -18,7 +18,7 @@ from src.pipeline.process_diagram import process_diagram
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="../templates")
 CORS(app)  # Enable CORS for all routes
 
 @app.route('/')

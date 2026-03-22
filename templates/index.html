@@ -65,35 +65,48 @@
     <pre id="result">No results yet.</pre>
 
     <script>
-        const form = document.getElementById("upload-form");
-        const resultBox = document.getElementById("result");
+    const form = document.getElementById("upload-form");
+    const resultBox = document.getElementById("result");
 
-        form.addEventListener("submit", async (event) => {
-            event.preventDefault();
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
 
-            const fileInput = document.getElementById("image");
-            if (!fileInput.files.length) {
-                resultBox.textContent = "Please choose an image first.";
-                return;
-            }
+        const fileInput = document.getElementById("image");
+        if (!fileInput.files.length) {
+            resultBox.textContent = "Please choose an image first.";
+            return;
+        }
 
-            const formData = new FormData();
-            formData.append("image", fileInput.files[0]);
+        const formData = new FormData();
+        formData.append("image", fileInput.files[0]);
 
-            resultBox.textContent = "Processing...";
+        resultBox.textContent = "Processing...";
 
-            try {
-                const response = await fetch("/detect", {
-                    method: "POST",
-                    body: formData
-                });
+        try {
+            const response = await fetch("/detect", {
+                method: "POST",
+                body: formData
+            });
 
-                const data = await response.json();
-                resultBox.textContent = JSON.stringify(data, null, 2);
-            } catch (error) {
-                resultBox.textContent = "Error: " + error;
-            }
-        });
-    </script>
+            const data = await response.json();
+
+            const objectCount = data.object_detections?.length ?? 0;
+            const textCount = data.text_detections?.length ?? 0;
+            const matchedCount = data.matched_objects?.length ?? 0;
+
+            const previewMatches = (data.matched_objects || []).slice(0, 10).map((item, index) => {
+                return `${index + 1}. ${item["Predicted Class"]} -> ${item["NearestText"] ?? "None"}`;
+            });
+
+            resultBox.textContent =
+                `Objects detected: ${objectCount}\n` +
+                `Text elements detected: ${textCount}\n` +
+                `Matched objects: ${matchedCount}\n\n` +
+                `Top matches:\n${previewMatches.join("\n")}`;
+        } catch (error) {
+            resultBox.textContent = "Error: " + error;
+        }
+    });
+</script>
 </body>
 </html>
