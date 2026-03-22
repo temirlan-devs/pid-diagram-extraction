@@ -11,6 +11,7 @@ import pandas as pd
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from PIL import Image
+from io import BytesIO
 
 from src.pipeline.process_diagram import process_diagram
 
@@ -57,8 +58,19 @@ def detect():
 
     # Encode CSV string as base64 to send as JSON
     csv_base64 = base64.b64encode(csv_string.encode()).decode()
-    #csv
     
+    # Create Excel workbook in memory
+    excel_output = BytesIO()
+    matched_df = pd.DataFrame(matched_objects)
+    text_df = pd.DataFrame(text_detections)
+    with pd.ExcelWriter(excel_output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Objects')
+        matched_df.to_excel(writer, index=False, sheet_name='Matched Objects')
+        text_df.to_excel(writer, index=False, sheet_name='Text Detections')
+
+    excel_output.seek(0)
+    excel_base64 = base64.b64encode(excel_output.getvalue()).decode("utf-8")
+
     logging.info("Processed image sent back to client")
     logging.info("Processed csv sent back to client")
     img_byte_arr = io.BytesIO()
@@ -66,7 +78,7 @@ def detect():
     annotated_image.save(img_byte_arr, format='JPEG')
     img_byte_arr.seek(0)
     annotated_image_base64 = base64.b64encode(img_byte_arr.getvalue()).decode("utf-8")
-    return jsonify({'csv_objects': csv_base64, 'detections_all': all_detections, 'object_detections': object_detections, 'text_detections': text_detections, 'matched_objects': matched_objects, 'annotated_image': annotated_image_base64})
+    return jsonify({'csv_objects': csv_base64, 'detections_all': all_detections, 'object_detections': object_detections, 'text_detections': text_detections, 'matched_objects': matched_objects, 'annotated_image': annotated_image_base64, 'excel_file': excel_base64})
 
 if __name__ == '__main__':
     app.run(debug=True)

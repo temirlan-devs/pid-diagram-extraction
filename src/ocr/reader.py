@@ -7,17 +7,28 @@ import numpy as np
 reader = easyocr.Reader(["en"])
 
 
+def polygon_to_box(points: np.ndarray) -> Tuple[int, int, int, int]:
+    x_coords = points[:, 0]
+    y_coords = points[:, 1]
+    return (
+        int(np.min(x_coords)),
+        int(np.min(y_coords)),
+        int(np.max(x_coords)),
+        int(np.max(y_coords)),
+    )
+
+
 def detect_text(image: np.ndarray) -> List[Dict[str, Any]]:
     """
-    Run OCR on a full image and return structured text detections.
+    Run OCR on a full image and return structured text detections
+    using a unified bounding-box format.
     """
     results = reader.readtext(image)
     detections: List[Dict[str, Any]] = []
 
     for idx, (bbox, text, score) in enumerate(results):
-        bbox = np.array(bbox).astype(int)
-        x1, y1 = map(int, bbox[0])
-        x2, y2 = map(int, bbox[2])
+        bbox_np = np.array(bbox).astype(int)
+        x1, y1, x2, y2 = polygon_to_box(bbox_np)
 
         detections.append(
             {
@@ -29,8 +40,8 @@ def detect_text(image: np.ndarray) -> List[Dict[str, Any]]:
                 "height": y2 - y1,
                 "Score": float(score),
                 "coordinates": (x1, y1, x2, y2),
-                "color": (255, 0, 0),
                 "DetectionType": "Text",
+                "color": (255, 0, 0),
             }
         )
 
@@ -41,7 +52,8 @@ def detect_text_in_tiles(
     tiles: List[Tuple[np.ndarray, int, int]]
 ) -> List[Dict[str, Any]]:
     """
-    Run OCR on image tiles and remap coordinates back to the original image.
+    Run OCR on image tiles and remap coordinates back to the original image
+    using a unified bounding-box format.
     """
     detections: List[Dict[str, Any]] = []
 
@@ -49,11 +61,13 @@ def detect_text_in_tiles(
         results = reader.readtext(tile)
 
         for bbox, text, score in results:
-            bbox = np.array(bbox).astype(int)
-            adjusted_bbox = [(int(pt[0] + x_offset), int(pt[1] + y_offset)) for pt in bbox]
+            bbox_np = np.array(bbox).astype(int)
 
-            x1, y1 = adjusted_bbox[0]
-            x2, y2 = adjusted_bbox[2]
+            adjusted_points = np.array(
+                [[int(pt[0] + x_offset), int(pt[1] + y_offset)] for pt in bbox_np]
+            )
+
+            x1, y1, x2, y2 = polygon_to_box(adjusted_points)
 
             detections.append(
                 {
@@ -62,7 +76,7 @@ def detect_text_in_tiles(
                     "y": y1,
                     "width": x2 - x1,
                     "height": y2 - y1,
-                    "coordinates": adjusted_bbox,
+                    "coordinates": (x1, y1, x2, y2),
                     "Score": float(score),
                     "DetectionType": "Text",
                     "color": (255, 0, 0),

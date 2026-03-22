@@ -7,71 +7,138 @@
     <title>P&ID Diagram Extraction</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
             max-width: 900px;
             margin: 40px auto;
-            padding: 0 20px;
-            line-height: 1.6;
+            padding: 24px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
         }
 
         h1 {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         p {
-            color: #444;
+            color: #555;
         }
 
         form {
-            margin-top: 24px;
-            padding: 20px;
-            border: 1px solid #ddd;
+            margin-top: 20px;
+            padding: 16px;
+            border: 1px solid #eee;
             border-radius: 8px;
+            background: #fafafa;
         }
 
         input[type="file"] {
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         button {
             padding: 10px 16px;
             border: none;
             border-radius: 6px;
+            background: #2563eb;
+            color: white;
+            font-weight: 500;
             cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: #1e4fd8;
+        }
+
+        #downloadImgBtn {
+            margin-top: 16px;
+            background: #16a34a;
+        }
+
+        #downloadImgBtn:hover {
+            background: #15803d;
         }
 
         pre {
-            margin-top: 24px;
+            margin-top: 20px;
             padding: 16px;
             background: #f6f6f6;
             border-radius: 8px;
             overflow-x: auto;
             white-space: pre-wrap;
-            word-break: break-word;
+        }
+
+        img {
+            margin-top: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
         }
     </style>
 </head>
 
 <body>
-    <h1>P&ID Diagram Extraction</h1>
-    <p>
-        Upload an engineering diagram to run symbol detection, OCR, and symbol-text association.
-    </p>
+    <div class="container">
+        <h1>P&ID Diagram Extraction</h1>
+        <p>
+            Upload an engineering diagram to run symbol detection, OCR, and symbol-text association.
+        </p>
 
-    <form id="upload-form">
-        <input type="file" id="image" name="image" accept="image/*" required />
-        <br />
-        <button type="submit">Process Diagram</button>
-    </form>
+        <form id="upload-form">
+            <input type="file" id="image" name="image" accept="image/*" required />
+            <br />
+            <button type="submit">Process Diagram</button>
+        </form>
 
-    <pre id="result">No results yet.</pre>
-    <img id="annotated-image" alt="Annotated result"
-        style="margin-top: 24px; max-width: 100%; display: none; border: 1px solid #ddd; border-radius: 8px;" />
-
+        <pre id="result">No results yet.</pre>
+        <img id="annotated-image" alt="Annotated result"
+            style="margin-top: 24px; max-width: 100%; display: none; border: 1px solid #ddd; border-radius: 8px;" />
+        <button id="downloadImgBtn">Download Annotated Image</button>
+        <button id="downloadExcelBtn">Download Excel</button>
+    </div>
     <script>
+        let annotatedImageBase64 = null;
+        let excelBase64 = null;
+
         const form = document.getElementById("upload-form");
         const resultBox = document.getElementById("result");
         const annotatedImage = document.getElementById("annotated-image");
+
+        const downloadImgBtn = document.getElementById("downloadImgBtn");
+        downloadImgBtn.style.display = "none"; // hide download image button until we have an image
+        const downloadExcelBtn = document.getElementById("downloadExcelBtn");
+        downloadExcelBtn.style.display = "none"; // hide download Excel button until we have an Excel file
+
+        downloadImgBtn.addEventListener("click", () => {
+            if (!annotatedImageBase64) {
+                alert("No image to download yet");
+                return;
+            }
+
+            const link = document.createElement("a");
+            link.href = "data:image/jpeg;base64," + annotatedImageBase64;
+            link.download = "annotated_image.jpg";
+            link.click();
+        });
+
+        downloadExcelBtn.addEventListener("click", () => {
+            if (!excelBase64) {
+                alert("No Excel file to download yet");
+                return;
+            }
+
+            const link = document.createElement("a");
+            link.href = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + excelBase64;
+            link.download = "pid-results.xlsx";
+            link.click();
+        });
+
         form.addEventListener("submit", async (event) => {
             event.preventDefault();
 
@@ -86,6 +153,8 @@
 
             resultBox.textContent = "Processing...";
             annotatedImage.style.display = "none";
+            downloadImgBtn.style.display = "none";
+            downloadExcelBtn.style.display = "none";
 
             try {
                 const response = await fetch("/detect", {
@@ -94,10 +163,15 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Request failed with status ${response.statusText}`);
+                    throw new Error(`Request failed with status ${response.status}`);
                 }
 
                 const data = await response.json();
+
+                // store image
+                annotatedImageBase64 = data.annotated_image;
+                // store Excel
+                excelBase64 = data.excel_file;
 
                 const objectCount = data.object_detections?.length ?? 0;
                 const textCount = data.text_detections?.length ?? 0;
@@ -111,17 +185,28 @@
                     `Objects detected: ${objectCount}\n` +
                     `Text elements detected: ${textCount}\n` +
                     `Matched objects: ${matchedCount}\n\n` +
-                    `Top matches:\n${previewMatches.join("\n")}`;
+                    `Showing top 10 matched object-to-text associations:\n${previewMatches.join("\n")}\n\n` +
+                    `For full results, including all detected objects and matches, download the Excel export below.`;
 
                 if (data.annotated_image) {
                     annotatedImage.src = `data:image/jpeg;base64,${data.annotated_image}`;
                     annotatedImage.style.display = "block";
+                    downloadImgBtn.style.display = "block";
                 } else {
                     annotatedImage.style.display = "none";
+                    downloadImgBtn.style.display = "none";
+                }
+
+                if (data.excel_file) {
+                    downloadExcelBtn.style.display = "block";
+                } else {
+                    downloadExcelBtn.style.display = "none";
                 }
             } catch (error) {
                 resultBox.textContent = "Error: " + error;
                 annotatedImage.style.display = "none";
+                downloadImgBtn.style.display = "none";
+                downloadExcelBtn.style.display = "none";
             }
         });
     </script>
