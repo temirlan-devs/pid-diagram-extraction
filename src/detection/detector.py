@@ -6,7 +6,7 @@ from PIL import Image
 from ultralytics import YOLO
 
 
-MODEL_PATH = "models/best.pt" // TODO: replace with actual model path
+MODEL_PATH = "models/best.pt"
 model = YOLO(MODEL_PATH)
 
 

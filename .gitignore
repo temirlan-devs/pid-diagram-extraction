@@ -20,6 +20,8 @@ tmp/
 *.pth
 *.ckpt
 
+!models/best.pt
+
 *.jpg
 *.jpeg
 *.png
