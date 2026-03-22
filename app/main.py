@@ -12,7 +12,6 @@ from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from PIL import Image
 
-from src.ocr.tiling import split_image
 from src.pipeline.process_diagram import process_diagram
 
 # Set up logging
@@ -40,6 +39,7 @@ def detect():
     text_detections = pipeline_result["text_detections"]
     all_detections = pipeline_result["all_detections"]
     matched_objects = pipeline_result["matched_objects"]
+    annotated_image = pipeline_result["annotated_image"]
 
     logging.info(f"Detected {len(object_detections)} objects and {len(text_detections)} text elements")
     
@@ -61,7 +61,12 @@ def detect():
     
     logging.info("Processed image sent back to client")
     logging.info("Processed csv sent back to client")
-    return jsonify({'csv_objects': csv_base64, 'detections_all': all_detections, 'object_detections': object_detections, 'text_detections': text_detections, 'matched_objects': matched_objects})
+    img_byte_arr = io.BytesIO()
+    annotated_image = annotated_image.convert("RGB")
+    annotated_image.save(img_byte_arr, format='JPEG')
+    img_byte_arr.seek(0)
+    annotated_image_base64 = base64.b64encode(img_byte_arr.getvalue()).decode("utf-8")
+    return jsonify({'csv_objects': csv_base64, 'detections_all': all_detections, 'object_detections': object_detections, 'text_detections': text_detections, 'matched_objects': matched_objects, 'annotated_image': annotated_image_base64})
 
 if __name__ == '__main__':
     app.run(debug=True)
