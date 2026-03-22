@@ -6,7 +6,6 @@ import base64
 import io
 import logging
 
-import cv2
 import numpy as np
 import pandas as pd
 from flask import Flask, jsonify, render_template, request
@@ -14,18 +13,15 @@ from flask_cors import CORS
 from PIL import Image
 
 from src.detection.detector import detect_objects
-from src.rendering.annotate import draw_bounding_boxes
-from src.ocr.reader import detect_text, detect_text_in_tiles
+from src.ocr.reader import detect_text
 from src.ocr.tiling import split_image
+from src.association.matcher import associate_text_to_objects
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
-
-# Define the size of each sub-image
-sub_image_size = 1024
 
 @app.route('/')
 def index():
@@ -42,13 +38,15 @@ def detect():
     # Perform object detection on the entire image
     object_detections = detect_objects(image)
     
-    # Perform text detection on sub-images
+    # Perform text detection on full image
     text_detections = detect_text(image_np)
     
     # Combine all detections
-    logging.info("Before combining")
+    logging.info("Combining object and text detections")
     all_detections = object_detections + text_detections
-    logging.info("After combining")
+
+    logging.info("Associating text with detected objects")
+    matched_objects = associate_text_to_objects(object_detections, text_detections)
     
     # Convert detections to DataFrame
     selected_fields = ['Predicted Class', 'ItemNumber', 'x', 'y', 'width', 'height', 'Score']
@@ -68,7 +66,7 @@ def detect():
     
     logging.info("Processed image sent back to client")
     logging.info("Processed csv sent back to client")
-    return jsonify({'csv_objects': csv_base64, 'detections_all': all_detections, 'object_detections': object_detections, 'text_detections': text_detections})
+    return jsonify({'csv_objects': csv_base64, 'detections_all': all_detections, 'object_detections': object_detections, 'text_detections': text_detections, 'matched_objects': matched_objects})
 
 if __name__ == '__main__':
     app.run(debug=True)
