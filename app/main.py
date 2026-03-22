@@ -12,10 +12,8 @@ from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from PIL import Image
 
-from src.detection.detector import detect_objects
-from src.ocr.reader import detect_text
 from src.ocr.tiling import split_image
-from src.association.matcher import associate_text_to_objects
+from src.pipeline.process_diagram import process_diagram
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -35,18 +33,15 @@ def detect():
     image_np = np.array(image)
     logging.debug(f"Original image size: {image_np.shape}")
 
-    # Perform object detection on the entire image
-    object_detections = detect_objects(image)
-    
-    # Perform text detection on full image
-    text_detections = detect_text(image_np)
-    
-    # Combine all detections
-    logging.info("Combining object and text detections")
-    all_detections = object_detections + text_detections
+    logging.info("Running diagram processing pipeline")
+    pipeline_result = process_diagram(image)
 
-    logging.info("Associating text with detected objects")
-    matched_objects = associate_text_to_objects(object_detections, text_detections)
+    object_detections = pipeline_result["object_detections"]
+    text_detections = pipeline_result["text_detections"]
+    all_detections = pipeline_result["all_detections"]
+    matched_objects = pipeline_result["matched_objects"]
+
+    logging.info(f"Detected {len(object_detections)} objects and {len(text_detections)} text elements")
     
     # Convert detections to DataFrame
     selected_fields = ['Predicted Class', 'ItemNumber', 'x', 'y', 'width', 'height', 'Score']
