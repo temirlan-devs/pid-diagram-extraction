@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>P&ID Diagram Extraction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            line-height: 1.6;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #444;
+        }
+
+        form {
+            margin-top: 24px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        input[type="file"] {
+            margin-bottom: 16px;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        pre {
+            margin-top: 24px;
+            padding: 16px;
+            background: #f6f6f6;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>P&ID Diagram Extraction</h1>
+    <p>
+        Upload an engineering diagram to run symbol detection, OCR, and symbol-text association.
+    </p>
+
+    <form id="upload-form">
+        <input type="file" id="image" name="image" accept="image/*" required />
+        <br />
+        <button type="submit">Process Diagram</button>
+    </form>
+
+    <pre id="result">No results yet.</pre>
+
+    <script>
+        const form = document.getElementById("upload-form");
+        const resultBox = document.getElementById("result");
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const fileInput = document.getElementById("image");
+            if (!fileInput.files.length) {
+                resultBox.textContent = "Please choose an image first.";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("image", fileInput.files[0]);
+
+            resultBox.textContent = "Processing...";
+
+            try {
+                const response = await fetch("/detect", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+                resultBox.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultBox.textContent = "Error: " + error;
+            }
+        });
+    </script>
+</body>
+</html>
