@@ -5,6 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>P&ID Diagram Extraction</title>
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -38,32 +39,131 @@
             background: #fafafa;
         }
 
-        input[type="file"] {
-            margin-bottom: 12px;
+        .file-upload {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
         }
 
-        button {
-            padding: 10px 16px;
+        .file-upload input[type="file"] {
+            display: none;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        .action-btn {
+            min-width: 190px;
+            height: 44px;
+            padding: 0 16px;
             border: none;
-            border-radius: 6px;
-            background: #2563eb;
+            border-radius: 8px;
+            background: #16a34a;
             color: white;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 14px;
             cursor: pointer;
             transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-sizing: border-box;
+            text-decoration: none;
         }
 
-        button:hover {
+        .action-btn:hover {
+            background: #15803d;
+        }
+
+        .primary-btn {
+            min-width: 190px;
+            height: 44px;
+            padding: 0 16px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-sizing: border-box;
+        }
+
+        .primary-btn:hover {
             background: #1e4fd8;
         }
 
-        #downloadImgBtn {
-            margin-top: 16px;
-            background: #16a34a;
+        .file-name {
+            color: #555;
+            font-size: 14px;
         }
 
-        #downloadImgBtn:hover {
-            background: #15803d;
+        .progress-wrapper {
+            display: none;
+            margin-top: 18px;
+        }
+
+        .progress-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+
+        .progress-label {
+            font-size: 14px;
+            color: #444;
+            font-weight: 500;
+        }
+
+        .progress-status {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            width: 35%;
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb, #60a5fa);
+            border-radius: 999px;
+            animation: loading 1.2s infinite ease-in-out;
+        }
+
+        @keyframes loading {
+            0% {
+                margin-left: -35%;
+            }
+
+            100% {
+                margin-left: 100%;
+            }
+        }
+
+        .progress-note {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #777;
         }
 
         pre {
@@ -75,10 +175,43 @@
             white-space: pre-wrap;
         }
 
-        img {
+        .image-viewer {
+            display: none;
             margin-top: 20px;
-            border-radius: 8px;
+            width: 100%;
+            height: 600px;
             border: 1px solid #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f9fafb;
+            position: relative;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .image-viewer.dragging {
+            cursor: grabbing;
+        }
+
+        .image-stage {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .image-stage img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: top left;
+            user-select: none;
+            -webkit-user-drag: none;
+            -webkit-user-select: none;
+            max-width: none;
+            border: none;
+            margin-top: 0;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -91,17 +224,47 @@
         </p>
 
         <form id="upload-form">
-            <input type="file" id="image" name="image" accept="image/*" required />
-            <br />
-            <button type="submit">Process Diagram</button>
+            <div class="file-upload">
+                <label for="image" class="action-btn">
+                    <span>⬆</span>
+                    <span>Choose Diagram</span>
+                </label>
+                <input type="file" id="image" name="image" accept="image/*" required />
+                <span id="file-name" class="file-name">No file selected</span>
+            </div>
+
+            <button type="submit" class="primary-btn">
+                <span>Process Diagram</span>
+            </button>
+
+            <div id="progress-wrapper" class="progress-wrapper">
+                <div class="progress-header">
+                    <div class="progress-label">Processing diagram...</div>
+                    <div class="progress-status">Running detection, OCR, and matching</div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+                <div class="progress-note">
+                    Progress is shown as live activity while the backend processes the request.
+                </div>
+            </div>
         </form>
 
         <pre id="result">No results yet.</pre>
-        <img id="annotated-image" alt="Annotated result"
-            style="margin-top: 24px; max-width: 100%; display: none; border: 1px solid #ddd; border-radius: 8px;" />
-        <button id="downloadImgBtn">Download Annotated Image</button>
-        <button id="downloadExcelBtn">Download Excel</button>
+
+        <div id="image-viewer" class="image-viewer">
+            <div id="image-stage" class="image-stage">
+                <img id="annotated-image" alt="Annotated result" draggable="false" />
+            </div>
+        </div>
+
+        <div class="button-row">
+            <button type="button" id="downloadImgBtn" class="action-btn">Download Annotated Image</button>
+            <button type="button" id="downloadExcelBtn" class="action-btn">Download Excel</button>
+        </div>
     </div>
+
     <script>
         let annotatedImageBase64 = null;
         let excelBase64 = null;
@@ -110,10 +273,97 @@
         const resultBox = document.getElementById("result");
         const annotatedImage = document.getElementById("annotated-image");
 
+        const fileInput = document.getElementById("image");
+        const fileNameLabel = document.getElementById("file-name");
+        const progressWrapper = document.getElementById("progress-wrapper");
+
         const downloadImgBtn = document.getElementById("downloadImgBtn");
-        downloadImgBtn.style.display = "none"; // hide download image button until we have an image
         const downloadExcelBtn = document.getElementById("downloadExcelBtn");
-        downloadExcelBtn.style.display = "none"; // hide download Excel button until we have an Excel file
+
+        const imageViewer = document.getElementById("image-viewer");
+
+        let scale = 1;
+        let minScale = 1;
+        let maxScale = 6;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+
+        downloadImgBtn.style.display = "none";
+        downloadExcelBtn.style.display = "none";
+
+        function clampTranslation() {
+            const viewerRect = imageViewer.getBoundingClientRect();
+            const viewerWidth = viewerRect.width;
+            const viewerHeight = viewerRect.height;
+
+            const scaledWidth = annotatedImage.naturalWidth * scale;
+            const scaledHeight = annotatedImage.naturalHeight * scale;
+
+            let minX, maxX, minY, maxY;
+
+            if (scaledWidth <= viewerWidth) {
+                minX = maxX = (viewerWidth - scaledWidth) / 2;
+            } else {
+                minX = viewerWidth - scaledWidth;
+                maxX = 0;
+            }
+
+            if (scaledHeight <= viewerHeight) {
+                minY = maxY = (viewerHeight - scaledHeight) / 2;
+            } else {
+                minY = viewerHeight - scaledHeight;
+                maxY = 0;
+            }
+
+            translateX = Math.min(maxX, Math.max(minX, translateX));
+            translateY = Math.min(maxY, Math.max(minY, translateY));
+        }
+
+        function updateImageTransform() {
+            clampTranslation();
+            annotatedImage.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        }
+
+        function fitImageToViewer() {
+            const viewerRect = imageViewer.getBoundingClientRect();
+            const imgWidth = annotatedImage.naturalWidth;
+            const imgHeight = annotatedImage.naturalHeight;
+
+            if (!imgWidth || !imgHeight || !viewerRect.width || !viewerRect.height) {
+                return;
+            }
+
+            const scaleX = viewerRect.width / imgWidth;
+            const scaleY = viewerRect.height / imgHeight;
+            minScale = Math.min(scaleX, scaleY, 1);
+
+            scale = minScale;
+
+            const renderedWidth = imgWidth * scale;
+            const renderedHeight = imgHeight * scale;
+
+            translateX = (viewerRect.width - renderedWidth) / 2;
+            translateY = (viewerRect.height - renderedHeight) / 2;
+
+            updateImageTransform();
+        }
+
+        function resetImageView() {
+            fitImageToViewer();
+        }
+
+        fileInput.addEventListener("change", () => {
+            fileNameLabel.textContent = fileInput.files.length
+                ? fileInput.files[0].name
+                : "No file selected";
+        });
+
+        annotatedImage.addEventListener("dragstart", (event) => {
+            event.preventDefault();
+        });
 
         downloadImgBtn.addEventListener("click", () => {
             if (!annotatedImageBase64) {
@@ -139,22 +389,84 @@
             link.click();
         });
 
+        imageViewer.addEventListener("wheel", (event) => {
+            event.preventDefault();
+
+            if (imageViewer.style.display === "none") return;
+
+            const rect = imageViewer.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+
+            const zoomFactor = event.deltaY < 0 ? 1.08 : 0.92;
+            const newScale = Math.min(Math.max(minScale, scale * zoomFactor), maxScale);
+
+            if (newScale === scale) return;
+
+            const imageX = (mouseX - translateX) / scale;
+            const imageY = (mouseY - translateY) / scale;
+
+            scale = newScale;
+            translateX = mouseX - imageX * scale;
+            translateY = mouseY - imageY * scale;
+
+            updateImageTransform();
+        });
+
+        imageViewer.addEventListener("mousedown", (event) => {
+            if (imageViewer.style.display === "none") return;
+            if (event.button !== 0) return;
+
+            event.preventDefault();
+
+            isDragging = true;
+            imageViewer.classList.add("dragging");
+            dragStartX = event.clientX - translateX;
+            dragStartY = event.clientY - translateY;
+        });
+
+        window.addEventListener("mousemove", (event) => {
+            if (!isDragging) return;
+
+            event.preventDefault();
+
+            translateX = event.clientX - dragStartX;
+            translateY = event.clientY - dragStartY;
+            updateImageTransform();
+        });
+
+        window.addEventListener("mouseup", () => {
+            isDragging = false;
+            imageViewer.classList.remove("dragging");
+        });
+
+        imageViewer.addEventListener("dblclick", () => {
+            resetImageView();
+        });
+
+        annotatedImage.addEventListener("load", () => {
+            if (imageViewer.style.display !== "none") {
+                fitImageToViewer();
+            }
+        });
+
         form.addEventListener("submit", async (event) => {
             event.preventDefault();
 
-            const fileInput = document.getElementById("image");
             if (!fileInput.files.length) {
                 resultBox.textContent = "Please choose an image first.";
+                progressWrapper.style.display = "none";
                 return;
             }
 
             const formData = new FormData();
             formData.append("image", fileInput.files[0]);
 
-            resultBox.textContent = "Processing...";
-            annotatedImage.style.display = "none";
+            resultBox.textContent = "Please wait while the diagram is being analyzed...";
+            imageViewer.style.display = "none";
             downloadImgBtn.style.display = "none";
             downloadExcelBtn.style.display = "none";
+            progressWrapper.style.display = "block";
 
             try {
                 const response = await fetch("/detect", {
@@ -168,9 +480,9 @@
 
                 const data = await response.json();
 
-                // store image
+                progressWrapper.style.display = "none";
+
                 annotatedImageBase64 = data.annotated_image;
-                // store Excel
                 excelBase64 = data.excel_file;
 
                 const objectCount = data.object_detections?.length ?? 0;
@@ -186,27 +498,24 @@
                     `Text elements detected: ${textCount}\n` +
                     `Matched objects: ${matchedCount}\n\n` +
                     `Showing top 10 matched object-to-text associations:\n${previewMatches.join("\n")}\n\n` +
-                    `For full results, including all detected objects and matches, download the Excel export below.`;
+                    `For full results (objects, matches, text detections, and field descriptions), download the Excel file below.`;
 
                 if (data.annotated_image) {
+                    imageViewer.style.display = "block";
                     annotatedImage.src = `data:image/jpeg;base64,${data.annotated_image}`;
-                    annotatedImage.style.display = "block";
-                    downloadImgBtn.style.display = "block";
-                } else {
-                    annotatedImage.style.display = "none";
-                    downloadImgBtn.style.display = "none";
+                    downloadImgBtn.style.display = "inline-flex";
                 }
 
                 if (data.excel_file) {
-                    downloadExcelBtn.style.display = "block";
-                } else {
-                    downloadExcelBtn.style.display = "none";
+                    downloadExcelBtn.style.display = "inline-flex";
                 }
+
             } catch (error) {
                 resultBox.textContent = "Error: " + error;
-                annotatedImage.style.display = "none";
+                imageViewer.style.display = "none";
                 downloadImgBtn.style.display = "none";
                 downloadExcelBtn.style.display = "none";
+                progressWrapper.style.display = "none";
             }
         });
     </script>

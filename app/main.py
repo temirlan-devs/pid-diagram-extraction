@@ -7,28 +7,30 @@ import io
 import logging
 
 import numpy as np
-import pandas as pd
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 from PIL import Image
-from io import BytesIO
 
 from src.pipeline.process_diagram import process_diagram
+from src.utils.export_utils import build_export_files
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__, template_folder="../templates")
-CORS(app)  # Enable CORS for all routes
+CORS(app)
 
-@app.route('/')
+
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/detect', methods=['POST'])
+
+@app.route("/detect", methods=["POST"])
 def detect():
     logging.info("Received image for processing")
-    file = request.files['image']
+
+    file = request.files["image"]
     image = Image.open(file.stream)
     image_np = np.array(image)
     logging.debug(f"Original image size: {image_np.shape}")
@@ -42,43 +44,38 @@ def detect():
     matched_objects = pipeline_result["matched_objects"]
     annotated_image = pipeline_result["annotated_image"]
 
-    logging.info(f"Detected {len(object_detections)} objects and {len(text_detections)} text elements")
-    
-    # Convert detections to DataFrame
-    selected_fields = ['Predicted Class', 'ItemNumber', 'x', 'y', 'width', 'height', 'Score']
-    filtered_detections = [{field: detection.get(field) for field in selected_fields} for detection in object_detections]
+    logging.info(
+        f"Detected {len(object_detections)} objects and {len(text_detections)} text elements"
+    )
 
-    df = pd.DataFrame(filtered_detections)
-    
-    # Save DataFrame to a CSV in memory
-    output = io.StringIO()
-    df.to_csv(output, index=False)
-    csv_string = output.getvalue()
-    output.close()
+    csv_base64, excel_base64 = build_export_files(
+        object_detections=object_detections,
+        matched_objects=matched_objects,
+        text_detections=text_detections,
+    )
 
-    # Encode CSV string as base64 to send as JSON
-    csv_base64 = base64.b64encode(csv_string.encode()).decode()
-    
-    # Create Excel workbook in memory
-    excel_output = BytesIO()
-    matched_df = pd.DataFrame(matched_objects)
-    text_df = pd.DataFrame(text_detections)
-    with pd.ExcelWriter(excel_output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Objects')
-        matched_df.to_excel(writer, index=False, sheet_name='Matched Objects')
-        text_df.to_excel(writer, index=False, sheet_name='Text Detections')
+    logging.info("Processed exports generated")
 
-    excel_output.seek(0)
-    excel_base64 = base64.b64encode(excel_output.getvalue()).decode("utf-8")
-
-    logging.info("Processed image sent back to client")
-    logging.info("Processed csv sent back to client")
     img_byte_arr = io.BytesIO()
     annotated_image = annotated_image.convert("RGB")
-    annotated_image.save(img_byte_arr, format='JPEG')
+    annotated_image.save(img_byte_arr, format="JPEG")
     img_byte_arr.seek(0)
     annotated_image_base64 = base64.b64encode(img_byte_arr.getvalue()).decode("utf-8")
-    return jsonify({'csv_objects': csv_base64, 'detections_all': all_detections, 'object_detections': object_detections, 'text_detections': text_detections, 'matched_objects': matched_objects, 'annotated_image': annotated_image_base64, 'excel_file': excel_base64})
 
-if __name__ == '__main__':
+    logging.info("Processed image sent back to client")
+
+    return jsonify(
+        {
+            "csv_objects": csv_base64,
+            "excel_file": excel_base64,
+            "detections_all": all_detections,
+            "object_detections": object_detections,
+            "text_detections": text_detections,
+            "matched_objects": matched_objects,
+            "annotated_image": annotated_image_base64,
+        }
+    )
+
+
+if __name__ == "__main__":
     app.run(debug=True)
