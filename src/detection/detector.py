@@ -63,6 +63,8 @@ def detect_objects(image: Image.Image) -> List[Dict[str, Any]]:
     """
     Run YOLO object detection on the full image and return structured detections.
     """
+    print("Model names:", model.names)
+
     detections: List[Dict[str, Any]] = []
 
     image_np = np.array(image)

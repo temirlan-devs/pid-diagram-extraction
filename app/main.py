@@ -31,7 +31,9 @@ def detect():
     logging.info("Received image for processing")
 
     file = request.files["image"]
-    image = Image.open(file.stream)
+    raw_image = Image.open(file.stream)
+    print("Original PIL mode:", raw_image.mode)
+    image = raw_image.convert("RGB")
     image_np = np.array(image)
     logging.debug(f"Original image size: {image_np.shape}")
 
@@ -39,6 +41,8 @@ def detect():
     pipeline_result = process_diagram(image)
 
     object_detections = pipeline_result["object_detections"]
+    print("IMAGE SHAPE:", image_np.shape)
+    print("FIRST DETECTIONS:", object_detections[:1])
     text_detections = pipeline_result["text_detections"]
     all_detections = pipeline_result["all_detections"]
     matched_objects = pipeline_result["matched_objects"]
