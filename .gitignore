@@ -2,9 +2,11 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
 .venv/
 venv/
 env/
+
 .idea/
 .vscode/
 .DS_Store
@@ -19,9 +21,9 @@ tmp/
 *.pt
 *.pth
 *.ckpt
-
 !models/best.pt
 
+# Ignore all images EXCEPT examples and screenshots
 *.jpg
 *.jpeg
 *.png
@@ -29,7 +31,11 @@ tmp/
 *.tif
 *.tiff
 
-!samples/input/
-!samples/output/
-!samples/input/.gitkeep
-!samples/output/.gitkeep
+!examples/
+!examples/*.jpg
+!examples/*.jpeg
+!examples/*.png
+
+!screenshots/
+!screenshots/*.png
+!screenshots/*.jpg
